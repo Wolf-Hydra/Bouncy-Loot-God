@@ -10,7 +10,7 @@ class Goal(OptionSet):
     """
     display_name = "Goal"
     valid_keys = list(location_name_to_id.keys())
-    default = ["Enemy: W4R-D3N"]
+    default = ["Enemy: Felicity Rampant"]
 
 # delete_starting_gear
 class DeleteStartingGear(Choice):
@@ -19,10 +19,12 @@ class DeleteStartingGear(Choice):
     display_name = "Delete Starting Gear"
     option_keep = 0
     alias_off = 0
+    alias_false = 0
     option_delete = 1
     alias_remove = 1
     alias_remove_all = 1
     alias_on = 1
+    alias_true = 1
     default = 0
 
 # gear_licenses
@@ -30,9 +32,7 @@ class GearLicenses(Choice):
     """Gear Licenses will be added to the item pool as receivable items. (Ex. Uncommon Pistol)
     You will need to receive the license before being able to equip that kind of gear + rarity combo.
     disabled = Exclude from Item Pool, ability to equip things is always unlocked.
-    exclude_seraph_plus = Seraph, Pearlescent, and Effervescent are excluded
-    exclude_pearl_plus = Pearlescent and Effervescent are excluded
-    exclude_rainbow = Effervescent is excluded
+    exclude_glitch = Glitch rarity are excluded
     all = All licenses are added to the pool
     """
     display_name = "Gear Rarity Receivable Items"
@@ -40,12 +40,12 @@ class GearLicenses(Choice):
     alias_remove = 0
     alias_remove_all = 0
     alias_off = 0
-    option_exclude_seraph_plus = 1
-    option_exclude_pearl_plus = 2
-    option_exclude_rainbow = 3
-    option_all = 4
-    alias_on = 4
-    alias_keep = 4
+    alias_false = 0
+    option_exclude_glitch = 1
+    option_all = 2
+    alias_on = 2
+    alias_true = 2
+    alias_keep = 2
     default = 1
 
 # receive_gear
@@ -58,9 +58,11 @@ class ReceiveGearItems(Choice):
     display_name = "Gear Receive Type"
     option_equip_only = 0
     alias_off = 0
+    alias_false = 0
     option_receive = 1
     alias_receive_all = 1
     alias_on = 1
+    alias_true = 1
     default = 1
 
 # filler_gear
@@ -74,10 +76,8 @@ class FillerGear(Choice):
     option_unique = 1
     option_rarity_groups = 2
     option_both = 3
-    option_unique = 1
-    option_rarity_groups = 2
-    option_both = 3
     alias_on = 3
+    alias_true = 3
     alias_keep = 3
     default = 1
 
@@ -87,7 +87,7 @@ class FillerItemRotation(OptionList):
     Filler items will be added to the item pool in a round-robin fashion, so any item in this list will be added many times.
     Include more instances of an item type by including it multiple times. Items will be added in the same ratio as they appear in this list.
     You can find item names in archi_data.py. Examples of items to use: 
-    "RandomCandy", "YellowCandy", "3 Skill Points", "$100", "10 Eridium", "10% Exp", "Filler Gear: Gemstone Pistol", "Filler Gear: Unkempt Harold", "Trap Spawn: Saturn"
+    "3 Skill Points", "$100", "10 Moonstones", "10% Exp", "Filler Gear: Glitch Pistol", "Filler Gear: Smasher", "Trap Spawn: Opha"
     You can also include "gear" and "sdu"
     "gear" will cycle through gear based on the choice in filler_gear.
     "sdu" will cycle through backpack and ammo upgrades up to the vanilla max levels.
@@ -99,7 +99,7 @@ class FillerItemRotation(OptionList):
     display_name = "Filler Item Rotation"
     from .archi_defs import item_data_table
     valid_keys = [k for k, v in item_data_table.items() if v.item_kind in ("filler", "trap")] + ["gear", "sdu"]
-    default = ["RandomCandy", "gear", "sdu", "3 Skill Points", "$100", "10 Eridium", "10% Exp"]
+    default = ["gear", "sdu", "3 Skill Points", "$100", "10 Moonstones", "10% Exp"]
 
 
 # vault_symbols
@@ -110,9 +110,11 @@ class VaultSymbols(Choice):
     alias_remove = 0
     alias_remove_all = 0
     alias_off = 0
+    alias_false = 0
     option_all = 1
     alias_keep = 1
     alias_on = 1
+    alias_true = 1
     default = 1
 
 # vending_machines
@@ -123,9 +125,11 @@ class VendingMachines(Choice):
     alias_remove = 0
     alias_remove_all = 0
     alias_off = 0
+    alias_false = 0
     option_all = 1
     alias_keep = 1
     alias_on = 1
+    alias_true = 1
     default = 1
 
 # entrance_locks
@@ -142,9 +146,11 @@ class EntranceLocks(Choice):
     alias_remove = 0
     alias_remove_all = 0
     alias_off = 0
+    alias_false = 0
     option_all = 1
     alias_keep = 1
     alias_on = 1
+    alias_true = 1
     default = 1
 
 # progressive_travel_groups
@@ -152,10 +158,10 @@ class ProgressiveTravelGroups(OptionSet):
     """
     Unlock regions progressively instead of individually. Choose which progressive groups should be included.
     Other regions will be unlocked individually if they are not removed from generation.
-    full list of options: ["basegame", "basegame_side", "ffs", "tina", "torgue", "scarlett", "hammerlock", "headhunter"]
+    full list of options: ["basegame", "basegame_side", "claptrap", "holdome", "shock_drop"]
     """
     display_name = "Progressive Travel Groups"
-    valid_keys = ["basegame", "basegame_side", "ffs", "tina", "torgue", "scarlett", "hammerlock", "headhunter"]
+    valid_keys = ["basegame", "basegame_side", "claptrap", "holdome", "shock_drop"]
     default = []
 
 
@@ -218,10 +224,12 @@ class SpawnTraps(Choice):
     alias_remove = 0
     alias_remove_all = 0
     alias_off = 0
+    alias_false = 0
     option_1 = 1
     alias_all = 1
     alias_keep = 1
     alias_on = 1
+    alias_true = 1
     option_2 = 2
     option_3 = 3
     option_4 = 4
@@ -246,9 +254,11 @@ class QuestCompletionChecks(Choice):
     alias_remove = 0
     alias_remove_all = 0
     alias_off = 0
+    alias_false = 0
     option_all = 1
     alias_keep = 1
     alias_on = 1
+    alias_true = 1
     option_story_only = 2
     alias_story = 2
     option_sidequest_only = 3
@@ -269,9 +279,11 @@ class QuestRewardItems(Choice):
     alias_remove = 0
     alias_remove_all = 0
     alias_off = 0
+    alias_false = 0
     option_all = 1
     alias_keep = 1
     alias_on = 1
+    alias_true = 1
     option_only_gear = 2
     option_only_included_regions = 3
     option_only_included_regions_gear = 4
@@ -283,6 +295,7 @@ class GenericMobChecks(Choice):
     display_name = "Generic Mob Checks"
     option_disabled = 0
     alias_off = 0
+    alias_false = 0
     alias_remove = 0
     alias_remove_all = 0
     option_1_percent = 1
@@ -291,6 +304,7 @@ class GenericMobChecks(Choice):
     option_4_percent = 4
     option_5_percent = 5
     alias_on = 5
+    alias_true = 5
     option_6_percent = 6
     option_7_percent = 7
     option_8_percent = 8
@@ -310,21 +324,19 @@ class GenericMobChecks(Choice):
 # gear_rarity_checks
 class GearRarityChecks(Choice):
     """Adds checks into the location pool for the first time you pick up gear of each type + rarity combination
-    exclude_seraph_plus = Seraph, Pearlescent, and Effervescent are excluded
-    exclude_pearl_plus = Pearlescent and Effervescent are excluded
-    exclude_rainbow = Effervescent is excluded
+    exclude_glitch = Glitch are excluded
     """
     display_name = "Gear Rarity Checks"
     option_disabled = 0
     alias_remove = 0
     alias_remove_all = 0
     alias_off = 0
-    option_exclude_seraph_plus = 1
-    option_exclude_pearl_plus = 2
-    option_exclude_rainbow = 3
-    option_all = 4
-    alias_keep = 4
-    alias_on = 4
+    alias_false = 0
+    option_exclude_glitch = 1
+    option_all = 5
+    alias_keep = 5
+    alias_on = 5
+    alias_true = 5
     default = 1
 
 # challenge_checks
@@ -340,11 +352,13 @@ class ChallengeChecks(Choice):
     alias_remove = 0
     alias_remove_all = 0
     alias_off = 0
+    alias_false = 0
 
     option_all = 1
     alias_level_1 = 1
     alias_keep = 1
     alias_on = 1
+    alias_true = 1
 
     option_region_based_only = 2
     alias_region_based = 2
@@ -355,19 +369,16 @@ class ChallengeChecks(Choice):
     default = 1
 
 # chest_checks
-class ChestChecks(Choice):
+class ChestChecks(OptionSet):
     """
-    Adds checks for opening most Red Chests
+    Adds checks for opening Chests
+    Dahl Chests: The blue wide chests with "Dahl" on their side
+    Red Chests: The red chests with cut corners
+    Moonstone Chests: The chests costing 40 moonstone to open
     """
-    display_name = "Red Chest Checks"
-    option_none = 0
-    alias_remove = 0
-    alias_remove_all = 0
-    alias_off = 0
-    option_all = 1
-    alias_keep = 1
-    alias_on = 1
-    default = 1
+    display_name = "Chest Checks"
+    valid_keys = ['Dahl Chests', 'Red Chests', 'Moonstone Chests']
+    default = ['Dahl Chests', 'Red Chests', 'Moonstone Chests']
 
 # class ControlTraps(Choice):
 #     """Add Control Traps to the item pool"""
@@ -419,82 +430,38 @@ class RemoveCoopChecks(Choice):
     alias_remove = 2
     default = 2
 
-# remove_ffs_checks
-class RemoveFFSChecks(Choice):
+# remove_claptrap_checks
+class RemoveClaptrapDlcChecks(Choice):
     """
-    Removes checks and quest rewards associated with Fight for Sanctuary DLC
+    Removes checks and quest rewards associated with Claptastic Voyage DLC
     """
-    display_name = "Remove Fight for Sanctuary DLC Checks"
+    display_name = "Remove Claptastic Voyage DLC Checks"
     option_keep = 0
     option_remove = 1
     alias_remove_all = 1
     default = 0
 
-# remove_tina_checks
-class RemoveTinaChecks(Choice):
+# remove_holodome_checks
+class RemoveHolodomeChecks(Choice):
     """
-    Removes checks and quest rewards associated with Tiny Tina's Assault on Dragon Keep DLC
+    Removes checks and quest rewards associated with The Holodome DLC
     """
-    display_name = "Remove Tiny Tina DLC Checks"
+    display_name = "Remove Holodome DLC Checks"
     option_keep = 0
     option_remove = 1
     alias_remove_all = 1
-    default = 0
+    default = 1
 
-# remove_torgue_checks
-class RemoveTorgueChecks(Choice):
+# remove_shock_drop_checks
+class RemoveShockDropChecks(Choice):
     """
-    Removes checks associated with Mr. Torgue's Campaign of Carnage DLC
+    Removes checks associated with Shock Drop Slaughter Pit DLC
     """
-    display_name = "Remove Torgue DLC Checks"
+    display_name = "Remove Shock Drop Slaughter Pit Checks"
     option_keep = 0
     option_remove = 1
     alias_remove_all = 1
-    default = 0
-
-# remove_scarlett_checks
-class RemoveScarlettChecks(Choice):
-    """
-    Removes checks associated with Sir Hammerlock's Big Game Hunt (Oasis) DLC
-    """
-    display_name = "Remove Scarlett DLC Checks"
-    option_keep = 0
-    option_remove = 1
-    alias_remove_all = 1
-    default = 0
-
-# remove_hammerlock_checks
-class RemoveHammerlockChecks(Choice):
-    """
-    Removes checks associated with Sir Hammerlock's Big Game Hunt (Hunter's Grotto) DLC
-    """
-    display_name = "Remove Hammerlock DLC Checks"
-    option_keep = 0
-    option_remove = 1
-    alias_remove_all = 1
-    default = 0
-
-# remove_digi_peak_checks
-class RemoveDigiPeakChecks(Choice):
-    """
-    Removes checks associated with Digistruct Peak DLC
-    """
-    display_name = "Remove Digistruct Peak Checks"
-    option_keep = 0
-    option_remove = 1
-    alias_remove_all = 1
-    default = 0
-
-# remove_headhunter_checks
-class RemoveHeadhunterChecks(Choice):
-    """
-    Removes checks associated with Hallowed Hollow, Gluttony Gulch, Marcus's Mercenary Shop, Rotgut Distillery and Wam Bam Island
-    """
-    display_name = "Remove Headhunter Checks"
-    option_keep = 0
-    option_remove = 1
-    alias_remove_all = 1
-    default = 0
+    default = 1
 
 # remove_base_game_checks
 class RemoveBaseGameChecks(Choice):
@@ -512,7 +479,7 @@ class RemoveBaseGameChecks(Choice):
 class RemoveSpecificRegionChecks(OptionSet):
     """
     Select specific regions to remove from the randomization. Find region names in Regions.py
-    ex. remove_specific_region_checks: ["FinksSlaughterhouse", "TerramorphousPeak"]
+    ex. remove_specific_region_checks: ["Stanton's Liver", "Sub-Level 13"]
     """
     display_name = "Remove Specific Regions"
     from .Regions import region_data_table
@@ -564,6 +531,7 @@ class AlwaysOnLevel(Choice):
     option_disabled = 0
     alias_disable = 0
     alias_off = 0
+    alias_false = 0
     alias_vanilla = 0
     option_enabled = 1
     alias_enable = 1
@@ -591,12 +559,22 @@ class MaxLevelChecks(Choice):
     option_none = 0
     alias_keep = 0
     alias_off = 0
+    alias_false = 0
     alias_uncapped = 0
     option_level_14 = 14
     option_level_20 = 20
     option_level_30 = 30
     default = 0
 
+class StartWithMelee(Toggle):
+    """
+    Start With Melee already unlocked.
+    Prevents early BK.
+    TPS has combat before any checks is available, 
+    in addition to requiring melee to get out of the intro.
+    """
+    display_name = "Start with Melee"
+    default = True
 class DeathLink(Toggle):
     display_name = "Death Link"
 
@@ -677,19 +655,16 @@ class BorderlandsTPSOptions(PerGameCommonOptions):
     gear_rarity_checks: GearRarityChecks
     challenge_checks: ChallengeChecks
     chest_checks: ChestChecks
+    start_with_melee: StartWithMelee
     remove_coop_checks: RemoveCoopChecks
     remove_missable_checks: RemoveMissableChecks
     # fill_extra_checks_with: FillExtraChecksWith
     # legendary_rando: LegendaryDropRandomizer
     # named_enemy_rando: NamedEnemyRandomizer
     # drop_multiplier_amt: DropChanceMultiplier
-    remove_ffs_checks: RemoveFFSChecks
-    remove_tina_checks: RemoveTinaChecks
-    remove_torgue_checks: RemoveTorgueChecks
-    remove_scarlett_checks: RemoveScarlettChecks
-    remove_hammerlock_checks: RemoveHammerlockChecks
-    remove_digi_peak_checks: RemoveDigiPeakChecks
-    remove_headhunter_checks: RemoveHeadhunterChecks
+    remove_claptrap_checks: RemoveClaptrapDlcChecks
+    remove_holodome_checks: RemoveHolodomeChecks
+    remove_shock_drop_checks: RemoveShockDropChecks
     remove_base_game_checks: RemoveBaseGameChecks
     remove_specific_region_checks: RemoveSpecificRegionChecks
     remove_locations: RemoveLocations

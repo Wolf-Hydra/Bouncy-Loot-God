@@ -74,8 +74,13 @@ def or_rule(rule1, rule2):
     return lambda state: rule1(state) or rule2(state)
 
 # creates a rule for a location, ignores location_data.alternates
-def create_rule(world: Borderlands2World, location_data: BL2ArchiData):
+def create_rule(world: Borderlands2World, location_data: BL2ArchiData, location_name: str):
     rule = lambda state: True
+
+    if not world.is_location_alt_included(location_data, location_name):
+        # mark this alternate impossible
+        return lambda state: False
+
     # jump requirement
     if world.options.jump_checks.value > 0:
         if location_data.jump_z_req > 0:
@@ -103,8 +108,9 @@ def create_rule(world: Borderlands2World, location_data: BL2ArchiData):
 
     # level requirement
     if location_data.level > 0:
-        if world.options.always_on_level.value in (1, 2) and not location_data.name.startswith("Level"):
-            # always_on_level on, just add level 1 requirement
+        # always_on_level on, just add level 1 requirement
+        # aol_keep_req means that even if you could kill the enemies, the location requires some amount of progression roughly equal to being that level
+        if world.options.always_on_level.value in (1, 2) and not "aol_keep_req" in location_data.tags:
             rule = and_rule(rule, lambda state, lvl=location_data.level: state.has(f"Lvl 1", world.player))
         elif location_data.level < 31:
             rule = and_rule(rule, lambda state, lvl=location_data.level: state.has(f"Lvl {lvl}", world.player))
@@ -122,14 +128,14 @@ def set_world_rules(world: Borderlands2World):
         loc = world.try_get_location(location_name)
         if not loc:
             continue
-        rule = create_rule(world, location_data)
+        rule = create_rule(world, location_data, location_name)
         try_add_rule(loc, rule)
         if location_data.alternates:
             for alt_data in location_data.alternates:
                 if alt_data.region in world.restricted_regions:
                     # skip if in a restricted region
                     continue
-                alt_rule = create_rule(world, alt_data)
+                alt_rule = create_rule(world, alt_data, location_name)
                 try_add_rule(loc, alt_rule, combine="or")
 
     # map region connection rules
@@ -214,12 +220,28 @@ def set_world_rules(world: Borderlands2World):
         try_add_rule(world.try_get_entrance("HerosPass to VaultOfTheWarrior"),
             lambda state: state.has("Progressive Jump", world.player, amt_jump_checks_needed(world, 629))) # TODO: not sure why / what amount?
 
+    # TODO: these events should be removed/skipped if inaccesssible. Could move to archi_defs file, or maybe recreated as rules in a Rule Builder refactor
     # detecting end of Torgue DLC is a little weird.
     if "Forge" not in world.restricted_regions:
         (event, loc) = world.create_event_at("Torgue DLC Complete", "TorgueArena")
         try_add_rule(loc, lambda state: state.can_reach_region("Forge", world.player))
         try_add_rule(loc, lambda state: state.has("Progressive Jump", world.player, amt_jump_checks_needed(world, 546)))
         try_add_rule(loc, lambda state: state.has("Crouch", world.player))
+
+        # can farm torgue tokens (we'll say death race for now)
+        (event, loc) = world.create_event_at("Torgue Tokens Accessible", "BadassCrater")
+        try_add_rule(loc, create_rule(world, BL2ArchiData("BadassCraterBar", 15), ""))
+
+    # can farm seraph crystals (not all raidbosses drop them)
+    (event, loc) = world.create_event_at("Seraph Crystals Accessible", "Menu")
+    try_add_rule(loc, lambda state: state.can_reach_region("Sanctuary", world.player)) # from black market
+    try_add_rule(loc, create_rule(world, BL2ArchiData("WashburneRefinery", 30, tags=["raidboss"], other_req_regions=["LeviathansLair"]), ""), combine="or") # hyperius
+    try_add_rule(loc, create_rule(world, BL2ArchiData("HaytersFolly", 30, tags=["raidboss"], other_req_regions=["LeviathansLair"]), ""), combine="or") # gee
+    try_add_rule(loc, create_rule(world, BL2ArchiData("PyroPetesBar", 30, req_items=["Torgue DLC Complete"], tags=["raidboss"]), ""), combine="or") # pete
+    try_add_rule(loc, create_rule(world, BL2ArchiData("CandlerakksCrag", 30, tags=["raidboss"], other_req_regions=["Terminus"]), ""), combine="or") # voracidous
+    try_add_rule(loc, create_rule(world, BL2ArchiData("WingedStorm", 38, tags=["raidboss"]), ""), combine="or") # ancient dragons
+    # try_add_rule(loc, create_rule(world, BL2ArchiData("FlamerockRefuge", 30), ""), combine="or") # slot machine (insane currently)
+
 
     # gear reward grants gear location (alternative requirement, use combine="or")
     # TODO: I think this only works for the Progression items (not quest rewards), maybe just remove this

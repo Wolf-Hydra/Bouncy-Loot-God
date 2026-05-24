@@ -6,7 +6,7 @@ An Archipelago.gg integration for Borderlands 2 and Borderlands The Pre-Sequel
 ### Requirements
 1. You should have the latest [BL2/TPS mod manager](https://github.com/bl-sdk/willow2-mod-manager) (3.7+) ([release page](https://github.com/bl-sdk/willow2-mod-manager/releases/tag/v3.7))
 
-2. the latest version of [Archipelago](https://github.com/ArchipelagoMW/Archipelago/releases) (0.6.4+) ([release page](https://github.com/ArchipelagoMW/Archipelago/releases/tag/0.6.4))
+2. the latest version of [Archipelago](https://github.com/ArchipelagoMW/Archipelago/releases) (0.6.7+) ([release page](https://github.com/ArchipelagoMW/Archipelago/releases/tag/0.6.7))
 
 3. the sdk mod requires [coroutines](https://bl-sdk.github.io/willow2-mod-db/mods/coroutines/) (1.1+) ([direct download](https://github.com/juso40/bl2sdk-mods/raw/refs/heads/main/coroutines/coroutines.sdkmod))  
 place it into the sdk_mods folder. A browser window will open if you still need to install this.
@@ -25,8 +25,10 @@ more information on [apworld](https://github.com/ArchipelagoMW/Archipelago/blob/
 Pick and download a file from [sample-yamls](/sample-yamls/). Heavy editing to the sample is not encouraged unless you know what you're doing. More samples coming soon.
 
 #### Note on Options Creator
-Only use the Options Creator if you are confident that you know what you're doing. Many options require you to know some location or itme names, find them in archi_data.py.
-[[current archi_data.py](https://github.com/EdricY/Bouncy-Loot-God/blob/main/sdk_mods/BouncyLootGod/archi_data.py)], [[v0.5 archi_data.py](https://github.com/EdricY/Bouncy-Loot-God/blob/v0.5/sdk_mods/BouncyLootGod/archi_data.py)], [[v0.5.3 archi_data.py](https://github.com/EdricY/Bouncy-Loot-God/blob/v0.5.3/sdk_mods/BouncyLootGod/archi_data.py)]
+Only use the Options Creator if you are confident that you know what you're doing. Many options require you to know some location or item names, find them in archi_data.py.
+[[current bl2 archi_data.py](https://github.com/EdricY/Bouncy-Loot-God/blob/main/sdk_mods/BouncyLootGod/bl2/archi_data.py)]  
+[[current tps archi_data.py](https://github.com/EdricY/Bouncy-Loot-God/blob/main/sdk_mods/BouncyLootGod/bl_tps/archi_data.py)]  
+ [[v0.5.3 archi_data.py](https://github.com/EdricY/Bouncy-Loot-God/blob/v0.5.3/sdk_mods/BouncyLootGod/archi_data.py)]  
 
 ### Getting your multi world started
 1. Place player yaml file(s): Archipelago Client > Browse Files > Players > insert yaml files here.
@@ -65,9 +67,9 @@ For the most stable experience play the [latest stable version](https://github.c
 For the latest features and if you would like to participate in testing and reporting issues, play the bleeding edge version (find it on the [release page](https://github.com/EdricY/Bouncy-Loot-God/releases)).
 
 ### What yaml do I choose?
-For syncs lasting around 2 hours, `basegame-short.yaml` is a good, well-tested choice.  
+For syncs lasting around 2 hours, `bl2-basegame-short.yaml` is a good, well-tested choice.  
 Specific yamls for other DLCs are available, and should also be sync viable.  
-For longer runs, `basegame-med.yaml` goes through the full base game story and should be beatable in about 8 hours.
+For longer runs, `bl2-basegame-med.yaml` goes through the full base game story and should be beatable in about 8 hours.
 
 ### What other mods do you recommend?
 Playing with other mods is not officially supported (yet!). But people have found the following mods useful:  
@@ -86,7 +88,7 @@ Another potential issue you can be running into is having multiple watcher loops
 You need to install coroutines. See [step 3 in Requirements](#requirements)
 
 ### I can't deal damage and want to deal damage, what do I do?
-You may add Melee to your beginning items. See [one of the sample yamls](https://github.com/EdricY/Bouncy-Loot-God/blob/main/sample-yamls/basegame-short.yaml)  
+You may add Melee to your beginning items. See [one of the sample yamls](https://github.com/EdricY/Bouncy-Loot-God/blob/main/sample-yamls/bl2-basegame-short.yaml#L54)  
 Include something like this in your yaml:
 ```
   start_inventory_from_pool:
@@ -107,12 +109,15 @@ Open the in game chat (not the developer console) and type "travel" and the name
 ex. `travel Thousand Cuts`
 
 ### Help! I have a blocked quest that I need to complete!
-Select the current story mission and enter Sanctuary. You should see a message that says to save-quit to make the quests appear at the bounty board. Save-quit, then find the quest at the bounty board. (This is a relatively new featuer, please report any issues found with it)
+Select the current story mission and enter Sanctuary. You should see a message that says to save-quit to make the quests appear at the bounty board. Save-quit, then find the quest at the bounty board. (This is a relatively new feature, please report any issues found with it)
 
 You can also hit inacessible quest turn in points when Hammerlock leaves to Sanctuary but you don't have access to Sanctuary yet. In this case, approach the Southern Shelf Bounty Board and the blocked quests should appear there.
 
 ### What's up with the item called `3 Skill Points (p)`?
 This is for AP world generation reasons. If you want the technical reasons read on... Skill points are fundamentally used as filler items, but there is one case where it needs to be treated as a progression item (i.e. something requires you to use your action skill). The `(p)` version is the progression version. Additionally, this should have the nice side effect of ensuring you receive skill points early with high progression balancing.
+
+### What's the item called `Generic: Name_of_Enemy`?
+This item is a pizza that types of enemies can drop in this mod. The yaml option `generic_mob_checks`, determines the percentage chance that killing an enemy (that has a generic item) will drop their pizza. If the pizza drops outside of the map, or falls through the map out of reach, you can use your crouch button (even if you dont have crouch unlocked) to bring all pizzas on your current map to you.
 
 ### An update got pushed, should I install the new version?
 Only if you are starting a new run. The sdkmod and AP world must remain in-sync with the version you generated the world with.
@@ -169,5 +174,6 @@ This puts borderlands2.apworld and BouncyLootGod.sdkmod into /dist, which are th
 [Trello Board](https://trello.com/b/y4WWZF3E/bl2-archipelago)  
 [Discord](https://discord.com/channels/1085716850370957462/1164256699608219698)  
 [Pop Tracker by DDogeOneeSama](https://github.com/DDogeOneeSama/Borderlands-2-PopTracker)  
-[Interactive Maps](https://mapgenie.io/borderlands-2/maps/world)
+[Interactive Maps](https://mapgenie.io/borderlands-2/maps/world)  
+[Universal Tracker](https://github.com/FarisTheAncient/Archipelago/blob/tracker/worlds/tracker/docs/setup.md)
 

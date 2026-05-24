@@ -7,13 +7,14 @@ Borderlands The Pre-Sequel:
   goal:
   - 'Quest: The Beginning of the End'
   delete_starting_gear: keep
-  gear_licenses: exclude_seraph_plus
+  gear_licenses: exclude_glitch
   receive_gear: receive
   filler_gear: unique
   filler_item_rotation:
   - $100
   - 10% Exp
   - 3 Skill Points
+  - 10 Moonstones
   - gear
   - sdu
   vault_symbols: all
@@ -28,9 +29,9 @@ Borderlands The Pre-Sequel:
   quest_completion_checks: all
   quest_reward_items: only_included_regions_gear
   generic_mob_checks: 5_percent
-  gear_rarity_checks: exclude_seraph_plus
+  gear_rarity_checks: exclude_glitch
   challenge_checks: all
-  chest_checks: all
+  chest_checks: ['Dahl Chests', 'Red Chests', 'Moonstone Chests']
   remove_coop_checks: remove_all
   remove_missable_checks: remove
   remove_ffs_checks: keep
@@ -51,7 +52,8 @@ Borderlands The Pre-Sequel:
   death_link_send_mode: death
   local_items: []
   non_local_items: []
-  start_inventory: {}
+  start_inventory: 
+    Melee : 1
   start_hints: []
   start_location_hints: []
   exclude_locations: []

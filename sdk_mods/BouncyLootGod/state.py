@@ -5,10 +5,22 @@ from math import sqrt
 from mods_base import ObjectFlags, Game
 from ui_utils import show_chat_message
 
-if Game.get_current().name == "TPS":
-    from BouncyLootGod.bl_tps.archi_data import item_name_to_id
-else:
-    from BouncyLootGod.bl2.archi_data import item_name_to_id
+from dataclasses import dataclass
+from typing import Callable
+
+@dataclass
+class ApItemMesh:
+    item_definition: str
+    mesh: str
+    package: str
+    rotator_pitch: int = -134
+    rotator_yaw: int = -14219
+    rotator_roll: int = -7164
+    material: str = None
+    usable_item_definition: str = None
+    loot_pool: str = None
+
+from BouncyLootGod.archi_data import item_name_to_id
 if 'blg' in globals() and blg is not None:
     print("disconnecting")
     blg.disconnect_socket()
@@ -26,13 +38,15 @@ class BLGGlobals:
     # (BL2 + this mod) <=====> (Socket Server + Archi Launcher BL 2 Client) <=====> (server/archipelago.gg)
     #             is_sock_connected                                   is_archi_connected
     # when is_archi_connected is False, we don't know what is and isn't unlocked.
-    def __init__(self, game_info):
+    def __init__(self):
         self.tick_count = 0
         self.sock = None
         self.is_sock_connected = False
         self.is_archi_connected = False
         self.has_shutdown = False
-        self.game_info = game_info
+
+        self.drop_item_mesh = None
+        self.vending_item_mesh = None
 
         self.game_items_received = dict() # full dict of items received, kept in sync with server
         self.should_do_fresh_character_setup = False
@@ -130,11 +144,24 @@ class BLGGlobals:
 
 def init_globals():
     global blg
-    game_info = None
+    blg = BLGGlobals()
     if Game.get_current().name == "TPS":
-        from .bl_tps import InitTps #there is probably a better way than this.
-        game_info = InitTps()
-    blg = BLGGlobals(game_info)
+        blg.drop_item_mesh = ApItemMesh(
+            item_definition="GD_DefaultProfiles.IntroEchos.BD_PrototypeIntroEcho",
+            usable_item_definition="GD_Baroness_Items_crocus.Baroness.Head_Baron002",
+            mesh="prop_rolandsresistance.Mesh.ResistancePoster",
+            material="GD_Co_Followyourheartdata.Materials.Mati_Cat_INST",
+            package="Deadsurface_Dynamic",
+            loot_pool="GD_Itempools.Runnables.Pool_FlameKnuckle"
+        )
+        blg.vending_item_mesh = ApItemMesh(
+            item_definition="GD_Baroness_Items_Marigold.Baroness.Head_Ma_Bar01",
+            usable_item_definition="GD_Baroness_Items_crocus.Baroness.Head_Baron002",
+            mesh="prop_rolandsresistance.Mesh.ResistancePoster",
+            material="GD_Co_Followyourheartdata.Materials.Mati_Cat_INST",
+            package="Deadsurface_Dynamic",
+            loot_pool="GD_Itempools.Runnables.Pool_FlameKnuckle"
+        )
 
 def set_globals(_blg):
     global blg

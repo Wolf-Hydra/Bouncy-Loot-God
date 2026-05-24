@@ -74,7 +74,7 @@ def or_rule(rule1, rule2):
     return lambda state: rule1(state) or rule2(state)
 
 # creates a rule for a location, ignores location_data.alternates
-def create_rule(world: BorderlandsTPSWorld, location_data: BLTPSArchiData):
+def create_rule(world: BorderlandsTPSWorld, location_data: BLTPSArchiData, location_name: str):
     rule = lambda state: True
     # jump requirement
     if world.options.jump_checks.value > 0:
@@ -97,13 +97,17 @@ def create_rule(world: BorderlandsTPSWorld, location_data: BLTPSArchiData):
             continue
         rule = and_rule(rule, lambda state, item_name=item_name: state.has(item_name, world.player))
 
+    if "from_license" in location_data.tags and world.options.receive_gear.value == 0:
+        # expecting receive from license, but receive setting is off, so mark as impossible
+        rule = and_rule(rule, lambda state: False)
+
     # required item group
     for group in location_data.req_groups:
         rule = and_rule(rule, lambda state, group=group: state.has_group(group, world.player))
 
     # level requirement
     if location_data.level > 0:
-        if world.options.always_on_level.value in (1, 2) and not location_data.name.startswith("Level"):
+        if world.options.always_on_level.value in (1, 2) and not location_name.startswith("Level"):
             # always_on_level on, just add level 1 requirement
             rule = and_rule(rule, lambda state, lvl=location_data.level: state.has(f"Lvl 1", world.player))
         elif location_data.level < 31:
@@ -122,14 +126,14 @@ def set_world_rules(world: BorderlandsTPSWorld):
         loc = world.try_get_location(location_name)
         if not loc:
             continue
-        rule = create_rule(world, location_data)
+        rule = create_rule(world, location_data, location_name)
         try_add_rule(loc, rule)
         if location_data.alternates:
             for alt_data in location_data.alternates:
                 if alt_data.region in world.restricted_regions:
                     # skip if in a restricted region
                     continue
-                alt_rule = create_rule(world, alt_data)
+                alt_rule = create_rule(world, alt_data, location_name)
                 try_add_rule(loc, alt_rule, combine="or")
 
     # map region connection rules
@@ -173,22 +177,17 @@ def set_world_rules(world: BorderlandsTPSWorld):
         # require basic combat to surpass level 0
         try_add_rule(world.try_get_location("Lvl 1"), lambda state: state.has_any(["Melee", "License: Common Pistol"], world.player))
         # require reasonable loadout to surpass level 10
-        try_add_rule(world.try_get_location("Lvl 10"), lambda state: state.has_all(["Melee", "License: Common Pistol", "License: Common Shield", "License: Common Shotgun", "License: Uncommon Pistol"], world.player))
+        try_add_rule(world.try_get_location("Lvl 10"), lambda state: state.has_all(["Melee", "License: Common Pistol",  "License: Common Oz Kit", "License: Common Shield", "License: Common Shotgun", "License: Uncommon Pistol"], world.player))
 
     # misc. region rules
 
-    # challenge requires 10,000
-    try_add_rule(world.try_get_location("Challenge Money: For the Hoard!"), 
-        lambda state: state.has("Progressive Money Cap", world.player, 2))
-
-    # Serenity's Waste access requires combat
-    if world.options.gear_licenses.value > 0:
-        try_add_rule(world.try_get_entrance("Helios Station to Serenity's Waste"),
-            lambda state: state.has("Lvl 1", world.player))
-
+    # Serenity's Waste access requires melee, robot stuck in elevator
     try_add_rule(world.try_get_entrance("Helios Station to Serenity's Waste"),
-             lambda state: state.has("Melee", world.player))
+        lambda state: state.has_all(["Lvl 1", "Melee"], world.player))
 
+
+    try_add_rule(world.try_get_location("Challenge Money: Mom Would Be Proud!"),
+                 lambda state: state.has("Progressive Money Cap", world.player, 2))
     # gear reward grants gear location (alternative requirement, use combine="or")
     # TODO: I think this only works for the Progression items (not quest rewards), maybe just remove this
     gear_to_rewards = {}

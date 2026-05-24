@@ -1,107 +1,14 @@
-from BouncyLootGod.state import get_globals
-from BouncyLootGod.bl_game import ApItemMesh
+from BouncyLootGod.state import get_globals, ApItemMesh
 import unrealsdk
 from ui_utils import show_chat_message
-from mods_base import ENGINE, get_pc
-from BouncyLootGod.bl2.archi_data import loc_name_to_id
+from mods_base import ENGINE, get_pc, Game
+from BouncyLootGod.archi_data import loc_name_to_id
 from BouncyLootGod.missions import move_sanctuary_blocked_missions, move_southern_shelf_blocked_missions
 from BouncyLootGod.traps import is_trap_pawn_def
+from BouncyLootGod.enemies import setup_check_drop, setup_generic_mob_drops
 # orange = unrealsdk.make_struct("Color", R=128, G=64, B=0, A=255)
 
 
-def create_pizza_item_pool(check_name):
-    blg = get_globals()
-    ibd_default = ApItemMesh(
-        item_definition="GD_DefaultProfiles.IntroEchos.BD_SoldierIntroEcho",
-        usable_item_definition="GD_DefaultProfiles.IntroEchos.ID_SoldierIntroECHO",
-        mesh="Prop_Details.Meshes.PizzaBoxWhole",
-        package="SanctuaryAir_Dynamic",
-        loot_pool="GD_Itempools.EarlyGame.Pool_Knuckledragger_Pistol"
-    )
-    if blg.game_info and blg.game_info.drop_item_mesh:
-        ibd_default = blg.game_info.drop_item_mesh
-    sample_inv = unrealsdk.find_object("InventoryBalanceDefinition", ibd_default.item_definition)
-    inv = unrealsdk.construct_object(
-        "InventoryBalanceDefinition",
-        blg.package,
-        "archi_item_" + check_name,
-        0,
-        sample_inv
-    )
-    # return
-    item_def = unrealsdk.construct_object(
-        "UsableItemDefinition",
-        blg.package,
-        "archi_def_" + check_name,
-        0,
-        unrealsdk.find_object("UsableItemDefinition", ibd_default.usable_item_definition or ibd_default.item_definition)
-    )
-    inv.InventoryDefinition = item_def
-    # try:
-    #     pizza_mesh = unrealsdk.find_object("StaticMesh", "Prop_Details.Meshes.PizzaBoxWhole")
-    # except:
-    #     unrealsdk.load_package("SanctuaryAir_Dynamic")
-    #     pizza_mesh = unrealsdk.find_object("StaticMesh", "Prop_Details.Meshes.PizzaBoxWhole")
-    unrealsdk.load_package(ibd_default.package)
-    pizza_mesh = unrealsdk.find_object("StaticMesh", ibd_default.mesh)
-    if ibd_default.material:
-        item_def.OverrideMaterial = unrealsdk.find_object("MaterialInstanceConstant", ibd_default.material)
-    
-    # pizza_mesh.ObjectFlags |= ObjectFlags.KEEP_ALIVE
-    item_def.NonCompositeStaticMesh = pizza_mesh
-    item_def.ItemName = "AP Check: " + check_name
-    item_def.BaseRarity.BaseValueConstant = 500.0 # teal, like mission/pearl
-    # item_def.BaseRarity.BaseValueConstant = 5 # orange
-    item_def.CustomPresentations = []
-    item_def.bPlayerUseItemOnPickup = True # allows pickup with full inventory (i think)
-    item_def.bDisallowAIFromGrabbingPickup = True
-
-    item_pool = unrealsdk.construct_object(
-        "ItemPoolDefinition",
-        blg.package,
-        "archi_pool_" + check_name,
-        0,
-        unrealsdk.find_object("ItemPoolDefinition", ibd_default.loot_pool)
-    )
-    # add our new item to the pool
-    item_pool.BalancedItems[0].InvBalanceDefinition = inv
-    return item_pool
-
-def setup_check_drop(check_name, ai_pawn_bd=None, behavior_spawn_items=None, chance=1.0):
-    if not ai_pawn_bd and not behavior_spawn_items:
-        print("don't know where to put check: " + check_name)
-        return
-    blg = get_globals()
-    loc_map = getattr(blg.game_info, "loc_name_to_id", loc_name_to_id)
-    if loc_map[check_name] in blg.locations_checked:
-        return
-
-    item_pool = create_pizza_item_pool(check_name)
-    prob = unrealsdk.make_struct(
-        "AttributeInitializationData",
-        BaseValueConstant=chance,
-        BaseValueAttribute=None,
-        InitializationDefinition=None,
-        BaseValueScaleConstant=1.000000
-    )
-    item_pool_info = unrealsdk.make_struct(
-        "ItemPoolInfo",
-        ItemPool=item_pool,
-        PoolProbability=prob
-    )
-
-    # add to enemy
-    # This can add the item multiple times if this function is called multiple times. But the item pools seem to be reset when re-entering the area
-    # TODO search through loot pool for if it exists already.
-    if ai_pawn_bd:
-        if len(ai_pawn_bd.DefaultItemPoolList) > 0:
-            ai_pawn_bd.DefaultItemPoolList.append(item_pool_info)
-        else:
-            for pt in ai_pawn_bd.PlayThroughs:
-                pt.CustomItemPoolList.append(item_pool_info)
-
-    elif behavior_spawn_items:
-        behavior_spawn_items.ItemPoolList.append(item_pool_info)
 
 def place_mesh_object(
     x, y, z,
@@ -185,10 +92,8 @@ def modify_bloodshot():
     pass
 
 def modify_bloodshot_ramparts():
-    if loc_name_to_id["Challenge BloodshotRamparts: Marcus Sacrifice"] not in blg.locations_checked:
-        bsi = unrealsdk.find_object("Behavior_SpawnItems", "GD_EasterEggs.InteractiveObjects.IO_MarcusSpawner:BehaviorProviderDefinition_0.Behavior_SpawnItems_156")
-        setup_check_drop("Challenge BloodshotRamparts: Marcus Sacrifice", behavior_spawn_items=bsi)
-
+    bsi = unrealsdk.find_object("Behavior_SpawnItems", "GD_EasterEggs.InteractiveObjects.IO_MarcusSpawner:BehaviorProviderDefinition_0.Behavior_SpawnItems_156")
+    setup_check_drop("Challenge BloodshotRamparts: Marcus Sacrifice", behavior_spawn_items=bsi)
 
 def modify_tundra_express():
     pass
@@ -215,8 +120,6 @@ def modify_wildlife_exploration_preserve():
         "Prop_Railings.Mesh.Handrail128",
         6000, -15000, -15000
     )
-    # TODO figure out bloodwing
-    pass
 
 def modify_thousand_cuts():
     pass
@@ -315,61 +218,6 @@ def modify_scyllas_grove():
     aid.ConditionalInitialization.ConditionalExpressionList = []
     aid.ConditionalInitialization.DefaultBaseValue.BaseValueConstant = 0.3
 
-def setup_generic_mob_drops():
-    blg = get_globals()
-    if blg.settings.get("generic_mob_checks", 0) == 0:
-        return
-
-    all_pawns = unrealsdk.find_all("AIPawnBalanceDefinition")
-    all_pawns = [p for p in all_pawns if not is_trap_pawn_def(p)]
-
-    chance = blg.settings.get("generic_mob_checks", 5) * 0.01
-    # chance = 1
-    if blg.game_info and blg.game_info.generic_dict:
-        for pawn in all_pawns:
-            pawn_str = str(pawn).lower()
-            for ap_name in blg.game_info.generic_dict.keys():
-                if blg.game_info.generic_dict[ap_name] in pawn_str:
-                    setup_check_drop(ap_name, pawn, chance=chance) #TODO: add game separation for safety?
-    else:
-        for pawn in all_pawns:
-            pawn_str = str(pawn).lower()
-            if "skag" in pawn_str:
-                setup_check_drop("Generic: Skag", pawn, chance=chance)
-            if "rakk" in pawn_str:
-                setup_check_drop("Generic: Rakk", pawn, chance=chance)
-            if "primalbeast" in pawn_str:
-                setup_check_drop("Generic: Bullymong", pawn, chance=chance)
-            if "psycho" in pawn_str:
-                setup_check_drop("Generic: Psycho", pawn, chance=chance)
-            if "_rat" in pawn_str:
-                setup_check_drop("Generic: Rat", pawn, chance=chance)
-            if "spiderant" in pawn_str:
-                setup_check_drop("Generic: Spiderant", pawn, chance=chance)
-            if "bugmorph" in pawn_str:
-                setup_check_drop("Generic: Varkid", pawn, chance=chance)
-            if "goliath" in pawn_str:
-                setup_check_drop("Generic: Goliath", pawn, chance=chance)
-            if "marauder" in pawn_str:
-                setup_check_drop("Generic: Marauder", pawn, chance=chance)
-            if "stalker" in pawn_str:
-                setup_check_drop("Generic: Stalker", pawn, chance=chance)
-            if "midget" in pawn_str:
-                setup_check_drop("Generic: Midget", pawn, chance=chance)
-            if "nomad" in pawn_str:
-                setup_check_drop("Generic: Nomad", pawn, chance=chance)
-            if "thresher" in pawn_str and "tentacle" not in pawn_str:
-                setup_check_drop("Generic: Thresher", pawn, chance=chance)
-            if "skeleton" in pawn_str:
-                setup_check_drop("Generic: Skeleton", pawn, chance=chance)
-            if "loader" in pawn_str:
-                setup_check_drop("Generic: Loader", pawn, chance=chance)
-            if "crystalisk" in pawn_str:
-                setup_check_drop("Generic: Crystalisk", pawn, chance=chance)
-            if "probe" in pawn_str:
-                setup_check_drop("Generic: Surveyor", pawn, chance=chance)
-            if pawn.Champion:
-                setup_check_drop("Generic: Badass", pawn, chance=chance)
 
 map_modifications = {
     "glacial_p": modify_claptraps_place,

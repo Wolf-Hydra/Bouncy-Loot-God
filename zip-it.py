@@ -2,6 +2,12 @@ import os
 import shutil
 import sys
 
+# remove pycache
+for root, dirs, files in os.walk('.', topdown=False):
+    for name in dirs:
+        if name == '__pycache__':
+            shutil.rmtree(os.path.join(root, name))
+
 def zip_directories_with_custom_names(directories, output_files, output_dir="."):
     if len(directories) != len(output_files):
         raise ValueError("directories and output_files must have the same length")
@@ -57,9 +63,16 @@ customworlddir = "C:\\ProgramData\\Archipelago\\custom_worlds"
 
 try:
     import zi_my_dirs
-    bl2sdkmoddir = getattr(zi_my_dirs, 'bl2sdkmoddir', bl2sdkmoddir)
-    tpssdkmoddir = getattr(zi_my_dirs, 'tpssdkmoddir', tpssdkmoddir)
-    customworlddir = getattr(zi_my_dirs, 'customworlddir', customworlddir)
+    _bl2sdkmoddir = getattr(zi_my_dirs, 'bl2sdkmoddir', bl2sdkmoddir)
+    _tpssdkmoddir = getattr(zi_my_dirs, 'tpssdkmoddir', tpssdkmoddir)
+    _customworlddir = getattr(zi_my_dirs, 'customworlddir', customworlddir)
+    if _bl2sdkmoddir:
+        bl2sdkmoddir = _bl2sdkmoddir
+    if _tpssdkmoddir:
+        tpssdkmoddir = _tpssdkmoddir
+    if _customworlddir:
+        customworlddir = _customworlddir
+
 except ImportError:
     print("No local overrides present, using default directories.")
     pass
@@ -92,6 +105,10 @@ if len(sys.argv) > 1:
         deployall()
     if sys.argv[1] == "deployall":
         deployall()
+    if sys.argv[1] == "deploytps":
+        deployboth_tps()
+    if sys.argv[1] == "deploybl2":
+        deployboth_bl2()
 
     if sys.argv[1] == "deployap" or sys.argv[1] == "ap":
         deployap()

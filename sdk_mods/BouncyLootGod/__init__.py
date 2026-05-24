@@ -5,14 +5,13 @@
 
 # debug thing: py unrealsdk.hooks.log_all_calls(True)
 # py unrealsdk.hooks.log_all_calls(False)
+# find the output file at ...\Steam\steamapps\common\Borderlands 2\Binaries\Win32\Plugins\unrealsdk.calls.tsv
 
 import unrealsdk
 import unrealsdk.unreal as unreal
 from mods_base import build_mod, ButtonOption, SpinnerOption, SliderOption, get_pc, hook, ENGINE, ObjectFlags, Game
 from ui_utils import show_chat_message, show_hud_message
 from unrealsdk.hooks import Type, Block, prevent_hooking_direct_calls
-
-from BouncyLootGod.bl_game import ApItemMesh
 
 try:
     assert __import__("coroutines").__version_info__ >= (1, 1), "Please install coroutines"
@@ -37,35 +36,34 @@ if __name__ == "builtins":
     get_pc().ConsoleCommand("rlm BouncyLootGod.*")
 # print(Game.get_current().name)
 if Game.get_current().name == "TPS":
-    from BouncyLootGod.bl_tps.archi_data import item_name_to_id, item_id_to_name, loc_name_to_id
-    from BouncyLootGod.bl_tps.lookups_enemy import enemy_class_to_loc_name
-    from BouncyLootGod.bl_tps.lookups_vault_symbols import vault_symbol_pathname_to_name
-    from BouncyLootGod.bl_tps.lookups_vending_machine import vending_machine_position_to_name
+    from BouncyLootGod.bl_tps.vault_symbols import vault_symbol_pathname_to_name
     from BouncyLootGod.bl_tps.loot_pools import spawn_gear, spawn_gear_from_pool_name, get_or_create_package
     from BouncyLootGod.bl_tps.map_modify import map_area_to_name
     from BouncyLootGod.bl_tps.entrances import entrance_to_req_areas, travel_targets, region_translation_dict
-    from BouncyLootGod.bl_tps.missions import grant_mission_reward, mission_ue_str_to_name, move_southern_shelf_blocked_missions
     from BouncyLootGod.bl_tps.challenges import challenge_dict, reveal_annoying_challenges
     from BouncyLootGod.bl_tps.chests import chest_dict
     socket_port = 9998
 else:
-    from BouncyLootGod.bl2.archi_data import item_name_to_id, item_id_to_name, loc_name_to_id
     from BouncyLootGod.bl2.entrances import entrance_to_req_areas, travel_targets, region_translation_dict
-    from BouncyLootGod.lookups import vault_symbol_pathname_to_name, vending_machine_position_to_name, enemy_class_to_loc_name
+    from BouncyLootGod.bl2.vault_symbols import vault_symbol_pathname_to_name
     from BouncyLootGod.loot_pools import spawn_gear, spawn_gear_from_pool_name, get_or_create_package
     from BouncyLootGod.map_modify import map_area_to_name
-    from BouncyLootGod.missions import grant_mission_reward, mission_ue_str_to_name, move_southern_shelf_blocked_missions
     from BouncyLootGod.challenges import challenge_dict, reveal_annoying_challenges
     from BouncyLootGod.chests import chest_dict
     socket_port = 9997
-
-from BouncyLootGod.travel import can_travel_to_region, get_travel_req_string, get_newly_unlocked_region_name, get_entrance_lock_warnings
+from BouncyLootGod.enemies import enemy_class_to_loc_name
+from BouncyLootGod.vending import vending_machine_position_to_name, use_vending_machine
+from BouncyLootGod.archi_data import item_name_to_id, item_id_to_name, loc_name_to_id
+from BouncyLootGod.missions import grant_mission_reward, mission_ue_str_to_name, move_southern_shelf_blocked_missions
+from BouncyLootGod.travel import can_travel_to_region, get_travel_req_string, get_newly_unlocked_region_name, get_entrance_lock_warnings, get_translated_map_name
 from BouncyLootGod.map_modify import map_modifications, place_mesh_object, setup_generic_mob_drops
 from BouncyLootGod.traps import spawn_at_dist, trigger_spawn_trap, init_traps
 from BouncyLootGod.rarity import get_gear_item_id, get_gear_loc_id, can_gear_item_id_be_equipped, can_inv_item_be_equipped, get_gear_kind, needs_rarity_check
-from BouncyLootGod.state import get_globals, init_globals, set_globals
+from BouncyLootGod.state import get_globals, init_globals, set_globals, ApItemMesh
 from BouncyLootGod.oob import get_loc_in_front_of_player
 from BouncyLootGod.always_on_level import set_always_on_level
+from BouncyLootGod.objectives import update_objective
+from BouncyLootGod.networking import push_locations
 
 mod_dir = os.path.dirname(__file__)
 parent_dir = os.path.dirname(mod_dir) # sdk_mods/ if running unzipped
@@ -176,7 +174,9 @@ def handle_item_received(item_id, is_init=False):
         return False
     show_chat_message("Received: " + item_name)
     if item_name.startswith("Progressive Travel: "):
-        show_chat_message("Area Unlocked: " + get_newly_unlocked_region_name(item_name, blg.game_items_received[item_id]))
+        region_name = get_newly_unlocked_region_name(item_name, blg.game_items_received[item_id])
+        if region_name:
+            show_chat_message("Area Unlocked: " + region_name)
 
     # spawn gear
     receive_gear_setting = blg.settings.get("receive_gear")
@@ -201,7 +201,7 @@ def handle_item_received(item_id, is_init=False):
 
     if item_id == item_name_to_id.get("$100"):
         get_pc().PlayerReplicationInfo.AddCurrencyOnHand(0, 100)
-    elif item_id == item_name_to_id.get("10 Eridium"):
+    elif item_id == item_name_to_id.get("10 Eridium") or item_id == item_name_to_id.get('10 Moonstones'):
         get_pc().PlayerReplicationInfo.AddCurrencyOnHand(1, 10)
     elif item_id == item_name_to_id.get("10% Exp"):
         get_pc().ExpEarn(int(get_exp_for_current_level() * 0.1), 0)
@@ -221,6 +221,8 @@ def handle_item_received(item_id, is_init=False):
         get_pc().IncBlackMarketUpgrade(4)
     elif item_id == item_name_to_id.get("Max Ammo SniperRifle"):
         get_pc().IncBlackMarketUpgrade(5)
+    elif item_id == item_name_to_id.get("Max Ammo Laser"):
+        get_pc().IncBlackMarketUpgrade(9)
     elif item_id == item_name_to_id.get("Max Grenade Count"):
         get_pc().IncBlackMarketUpgrade(6)
     elif item_id == item_name_to_id.get("Backpack Upgrade"):
@@ -301,6 +303,7 @@ def pull_items():
         
         if should_play_sound:
             if datetime.datetime.now().second % 2 == 0:
+                # receive_sounds=["Ake_Cork_VO_Episode_03.Ak_Play_VO_Cork_EP3_PT01_1032_Enforcer", "Ake_Cork_VO_Episode_03.Ak_Play_VO_Cork_EP3_PT01_0020_Enforcer" ],
                 find_and_play_akevent("Ake_VOCT_Contextual.Ak_Play_VOCT_Steve_HeyOo") # heyoo
             else:
                 find_and_play_akevent('Ake_VOSQ_Sidequests.Ak_Play_VOSQ_ShootInFace_09_live_ShootyFace') # thank you!
@@ -398,29 +401,6 @@ def init_data():
     init_game_items_received()
 
 
-def push_locations():
-    blg = get_globals()
-    if not blg.is_archi_connected:
-        return
-    # TODO: bundle into one request instead of multiple
-    while len(blg.locs_to_send) > 0:
-        check = blg.locs_to_send[0]
-
-        if check == blg.settings.get("goal"): # look for if check is goal
-            print("GOAL!")
-        elif check in blg.locations_checked:  # otherwise skip already checked
-            blg.locs_to_send.pop(0)
-            continue
-
-        print('sending ' + str(check))
-        blg.sock.send(bytes(str(check), 'utf8'))
-        msg = blg.sock.recv(4096)
-        if msg.decode().startswith("ack"):
-            blg.locations_checked.add(check)
-        else:
-            print(msg.decode())
-            print(check)
-        blg.locs_to_send.pop(0) # remove from list after successful send,
 
 # checks for archi connection, then initializes
 def check_is_archi_connected():
@@ -486,6 +466,24 @@ oid_connect_to_socket_server: ButtonOption = ButtonOption(
     description="Connect to Socket Server",
 )
 
+#this feels like an bad way to do this, should find a hook instead
+# mission is given before the items are, same with challenges
+# no obvious hook for the initialization hud GFx
+def tps_delay_start_delay(blg):
+    if blg.settings.get("delete_starting_gear") == 0:
+        blg.should_do_fresh_character_setup = False
+        return None #dont need to do anything here if the delete starting gear setting is "keep"
+    can_show = False
+    tick = 0
+    print("Awaiting character ready for TPS")
+    while not can_show:
+        yield WaitForSeconds(0.3)
+        tick += 1
+        (can_show, bit_value) = get_pc().CanShowModalMenu(0)
+    yield WaitForSeconds(0.8)
+    print("Done with fresh char for TPS")
+    blg.should_do_fresh_character_setup = False
+    return None
 def watcher_loop(blg):
     while True:
         yield WaitForSeconds(5)
@@ -511,6 +509,8 @@ def add_inventory(obj: unreal.UObject, args: unreal.WrappedStruct, ret, func: un
         # not player inventory
         return
     if blg.should_do_fresh_character_setup:
+        if blg.settings.get("delete_starting_gear") == 1:
+            return Block
         return
     try:
         cust_name = args.NewItem.ItemName
@@ -595,7 +595,7 @@ def set_item_card_ex(obj: unreal.UObject, args: unreal.WrappedStruct, ret, func:
         obj.SetLevelRequirement(True, False, False, f"lvl {inv_item.GameStage}, Can't Equip: {kind}")
 
     if needs_rarity_check(inv_item):
-        obj.SetFunStats(f"<font size='18' color='#FFFF00'>{kind} is unchecked! Pick me up!</font>")
+        obj.SetFunStats(f"<font size='18' color='#FFFF00'>\"{kind} Found\" is unchecked! Pick me up!</font>")
 
 def get_total_skill_pts():
     # unused for now.
@@ -801,6 +801,7 @@ def delete_gear():
 
     # TODO: maybe avoid deleting mission items or starting echo
     inventory_manager.Backpack = []
+    inventory_manager.ServerUpdateBackpackInventoryCount(0)
 
 def on_enable():
     init_globals()
@@ -847,7 +848,11 @@ def modify_map_area(obj: unreal.UObject, args: unreal.WrappedStruct, ret, func: 
         # remove starting inv
         if blg.settings.get("delete_starting_gear") == 1:
             delete_gear()
-        blg.should_do_fresh_character_setup = False
+        if Game.get_current().name == "TPS": #TPS is not done yet
+            #we need to wait a bit more once this swaps to true
+            start_coroutine_tick(tps_delay_start_delay(blg))
+        else:
+            blg.should_do_fresh_character_setup = False
 
     # run other first load setup
     if blg.should_do_initial_modify:
@@ -1201,7 +1206,7 @@ oid_test_btn: ButtonOption = ButtonOption(
 
 oid_collision: SpinnerOption = SpinnerOption(
     "Disable Loot Collision",
-    "Never",
+    "AP Spawned",
     ["Never", "AP Spawned", "Always"],
     True,
     description=("Turns off loot collision, avoiding the massive spray of loot when multiple items are spawned."
@@ -1362,118 +1367,6 @@ def initiate_travel(obj: unreal.UObject, args: unreal.WrappedStruct, ret, func: 
 #         return
 #     print("vending machine init")
 
-def get_vending_machine_pos_str(wvm):
-    # old way: f"{str(wvm.Outer)}~{str(wvm.Location.X)},{str(wvm.Location.Y)}"
-    return f"{int(wvm.Location.X)},{int(wvm.Location.Y)}"
-
-@hook("WillowGame.WillowInteractiveObject:UseObject")
-def use_vending_machine(obj: unreal.UObject, args: unreal.WrappedStruct, ret, func: unreal.BoundFunction):
-    if obj.Class.Name != "WillowVendingMachine":
-        return
-    blg = get_globals()
-    if blg.settings.get("vending_machines") == 0:
-        # skip if vending machine checks are off
-        # TODO new include_locations settings could include vending machines with the vending_machines setting off
-        return
-    # TODO: settings option to always remove iotd
-
-    pos_str = get_vending_machine_pos_str(obj)
-    check_name = vending_machine_position_to_name.get(pos_str)
-    if not check_name:
-        # log_to_file("opened unknown Vending Machine: " + pos_str)
-        # show_chat_message("opened unknown Vending Machine: " + pos_str)
-        return
-    # print(check_name)
-    loc_id = loc_name_to_id.get(check_name)
-    if loc_id is None:
-        return
-
-    if loc_id in blg.locations_checked:
-        return
-    blg.active_vend = obj
-    blg.active_vend_price = obj.FixedFeaturedItemCost
-    if obj.FormOfCurrency == 0:
-        obj.FixedFeaturedItemCost = 100
-    else:
-        # Torgue and Seraph vendors
-        obj.FixedFeaturedItemCost = 10
-    if obj.FeaturedItem is None:
-        sample = obj.ShopInventory[0]
-        obj.FeaturedItem = unrealsdk.construct_object(sample.Class, blg.package, "archi_venditem_def", 0, sample)
-    print(str(obj.FeaturedItem))
-    # try to force the featured item to not be a weapon
-    reroll_count = 0
-    while obj.FeaturedItem.Class.Name == "WillowWeapon" and reroll_count < 20:
-        reroll_count += 1
-        obj.ResetInventory()
-
-    if obj.FeaturedItem.Class.Name == "WillowWeapon":
-        # can't figure out how to display pizza mesh on weapon.
-        # and swapping the weapon to an item results in an item that can't be purchased
-        # maybe we could change the lootpool and reroll once? GD_ItemPools_Shop.Items.Shoppool_FeaturedItem 
-        # GD_ItemPools_Shop.HealthShop.HealthShop_FeaturedItem 
-        # GD_ItemPools_Shop.WeaponPools.Shoppool_FeaturedItem_WeaponMachine
-
-        w_def = obj.FeaturedItem.DefinitionData
-        obj.FeaturedItem.InitializeFromDefinitionData(
-            unrealsdk.make_struct("WeaponDefinitionData",
-                WeaponTypeDefinition=w_def.WeaponTypeDefinition,
-                BalanceDefinition=w_def.BalanceDefinition,
-                # ManufacturerDefinition=w_def.ManufacturerDefinition,
-                # ManufacturerGradeIndex=w_def.ManufacturerGradeIndex,
-                # BodyPartDefinition=w_def.BodyPartDefinition,
-                # GripPartDefinition=w_def.GripPartDefinition,
-                # BarrelPartDefinition=w_def.BarrelPartDefinition,
-                # SightPartDefinition=w_def.SightPartDefinition,
-                # StockPartDefinition=w_def.StockPartDefinition,
-                # ElementalPartDefinition=w_def.ElementalPartDefinition,
-                # Accessory1PartDefinition=unrealsdk.find_object("WeaponPartDefinition", "GD_Weap_AssaultRifle.Accessory.AR_Accessory_BanditClamp_Damage"),
-                # Accessory2PartDefinition=w_def.Accessory2PartDefinition,
-                # MaterialPartDefinition=clone_material_part,
-                # PrefixPartDefinition=w_def.PrefixPartDefinition,
-                # TitlePartDefinition=w_def.TitlePartDefinition,
-                # GameStage=w_def.GameStage,
-                # UniqueId=w_def.UniqueId,
-            ),
-            None
-        )
-        obj.FeaturedItem.ItemName = "AP Check: " + check_name
-    else:
-        blg = get_globals()
-        # print(obj.FeaturedItem.Class.Name)
-        mesh_def = ApItemMesh(
-            item_definition="GD_Assassin_Items_Aster.Assassin.Head_ZeroAster",
-            mesh="Prop_Details.Meshes.PizzaBoxWhole",
-            material="Prop_Details.Materials.Mati_PizzaBox",
-            package="SanctuaryAir_Dynamic",
-            loot_pool="GD_Itempools.EarlyGame.Pool_Knuckledragger_Pistol"
-        )
-        if blg.game_info and blg.game_info.vending_item_mesh:
-            mesh_def = blg.game_info.vending_item_mesh
-        sample_def = unrealsdk.find_object("UsableCustomizationItemDefinition", mesh_def.item_definition)
-        item_def = unrealsdk.construct_object("UsableCustomizationItemDefinition", blg.package, "archi_venditem_def", 0, sample_def)
-
-        try:
-            pizza_mesh = unrealsdk.find_object("StaticMesh", mesh_def.mesh)
-        except:
-            unrealsdk.load_package(mesh_def.package)
-            pizza_mesh = unrealsdk.find_object("StaticMesh", mesh_def.mesh)
-
-        item_def.NonCompositeStaticMesh = pizza_mesh
-        item_def.ItemName = "AP Check: " + check_name
-        item_def.CustomPresentations = []
-        item_def.bPlayerUseItemOnPickup = True # allows pickup with full inventory (i think)
-        item_def.bIsConsumable = True
-        try:
-            item_def.OverrideMaterial = unrealsdk.find_object("MaterialInstanceConstant", mesh_def.material)
-        except:
-            item_def.OverrideMaterial = None
-        item_def.BaseRarity.BaseValueConstant = 500.0 # teal, like mission/pearl
-        item_def.UIMeshRotation = unrealsdk.make_struct("Rotator", Pitch = -134, Yaw = -14219, Roll = -7164)
-        obj.FeaturedItem.InitializeFromDefinitionData(
-            unrealsdk.make_struct("ItemDefinitionData", ItemDefinition=item_def),
-            None
-        )
 
 # WillowGame.WillowItem:RemoveFromShop
 
@@ -1496,10 +1389,14 @@ def gfx_menu_closed(obj: unreal.UObject, args: unreal.WrappedStruct, ret, func: 
         blg.active_vend.FixedFeaturedItemCost = blg.active_vend_price
         blg.active_vend = None
 
+# TODO: move into enemies.py
 @hook("WillowGame.WillowAIPawn:Died")
 def on_killed_enemy(obj: unreal.UObject, args: unreal.WrappedStruct, ret, func: unreal.BoundFunction):
-    enemy_key = obj.AIClass.Name
-    loc_name = enemy_class_to_loc_name.get(enemy_key)
+    loc_name = ""
+    if obj.AIClass:
+        enemy_key = obj.AIClass.Name
+        loc_name = enemy_class_to_loc_name.get(enemy_key)
+
     if not loc_name:
         # use pawn balance def
         enemy_key = getattr(obj.BalanceDefinitionState.BalanceDefinition, "Name", "")
@@ -1517,8 +1414,6 @@ def on_killed_enemy(obj: unreal.UObject, args: unreal.WrappedStruct, ret, func: 
         return
 
     blg = get_globals()
-    if not passed_loc_conditions(loc_name, blg.locations_checked):
-        return
     loc_id = loc_name_to_id[loc_name]
     blg.locs_to_send.append(loc_id)
     push_locations()
@@ -1562,6 +1457,10 @@ def use_chest(obj: unreal.UObject, args: unreal.WrappedStruct, ret, func: unreal
         # print(obj.InteractiveObjectDefinition)
         # log_to_file("unknown chest: " + pos_str)
         return
+    check_chest_type = blg.settings.get("chest_type_checks") #list of prefixes for chests, TPS has "Chest ", "Red Chest " and "MoonChest " 
+    if check_chest_type is not None:
+        if not any(loc_name.startswith(prefix) for prefix in check_chest_type):
+            return  # chest type is excluded, don't send it
     loc_id = loc_name_to_id.get(loc_name)
     if not loc_id:
         print("Failed id lookup: " + str(loc_name))
@@ -1580,30 +1479,46 @@ def black_market_get_price(obj: unreal.UObject, args: unreal.WrappedStruct, ret,
         return
     return Block, bm_price
 
-bm_purchasables = [
-    ("E-Tech Package", "prop_lightfixtures.Meshes.WallLight_02", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
-    ("Shield Package", "Prop_Tires.RubberTire", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
-    ("Class Mod Package", "Prop_Signs_02.Meshes.SanctuaryClaptrap", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
-    ("Grenade Mod Package", "Prop_Papers.Meshes.CrumpledPaper", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
-    # ("Tina COM Package", "Prop_Details.Meshes.Radio", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
-    ("Gemstone Package", "Prop_Details.Books", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
-    ("Seraph Crystals", "Prop_Bank.Meshes.Vault", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
-    ("Money", "Prop_Pickups.Meshes.Money_02", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
-]
+if Game.get_current().name == "TPS":
+    bm_purchasables = [
+        ("Shield Package", "Prop_Co_ShiftItems.Meshes.Paint", "FX_CREA_PrimalBeast.Materials.Mati_Ice_Chunk"),
+        ("Class Mod Package", "Prop_Co_ShiftItems.Meshes.Co_ShiftItems_BoxofGears", "FX_CREA_PrimalBeast.Materials.Mati_Ice_Chunk"),
+        ("Grenade Mod Package", "Prop_Co_ShiftItems.Meshes.Shift_Candy", "FX_CREA_PrimalBeast.Materials.Mati_Ice_Chunk"),
+        ("Oz Kit Package", "Prop_Co_Oxygencanister.Mesh.Co_Oxygencanister", "FX_CREA_PrimalBeast.Materials.Mati_Ice_Chunk"),
+        ("Glitch Package", "Prop_Co_ShiftItems.Meshes.Co_DahlShift_SatellitePhone", "FX_CREA_PrimalBeast.Materials.Mati_Ice_Chunk"),
+        ("Laser Package", "Prop_Details.Meshes.GiftBow", "FX_CREA_PrimalBeast.Materials.Mati_Ice_Chunk"),
+        ("RocketLauncher Package", "Prop_Details.Meshes.BeerBottle", "FX_CREA_PrimalBeast.Materials.Mati_Ice_Chunk"), #TODO: Replace with moonstone loot when implemented as filler
+        ("Money", "Prop_Details.Meshes.Crumpets", "FX_CREA_PrimalBeast.Materials.Mati_Ice_Chunk"),
+    ]
+else:
+    bm_purchasables = [
+        ("E-Tech Package", "prop_lightfixtures.Meshes.WallLight_02", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+        ("Shield Package", "Prop_Tires.RubberTire", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+        ("Class Mod Package", "Prop_Signs_02.Meshes.SanctuaryClaptrap", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+        ("Grenade Mod Package", "Prop_Papers.Meshes.CrumpledPaper", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+        # ("Tina COM Package", "Prop_Details.Meshes.Radio", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+        ("Gemstone Package", "Prop_Details.Books", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+        ("Seraph Crystals", "Prop_Bank.Meshes.Vault", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+        ("Money", "Prop_Pickups.Meshes.Money_02", "Prop_Pickups.Materials.Eridium_Pickups_Bar"),
+    ]
 
 def change_bm_inventory(bmvm):
     if bmvm is None:
         return
     pc = get_pc()
     blg = get_globals()
-    inv_manager = pc.GetPawnInventoryManager()
-    sample_def = unrealsdk.find_object("UsableCustomizationItemDefinition", "GD_Assassin_Items_Aster.Assassin.Head_ZeroAster")
-    item_def = None
+    item_mesh_details = blg.vending_item_mesh or ApItemMesh(
+        item_definition="GD_Assassin_Items_Aster.Assassin.Head_ZeroAster",
+        mesh="Prop_Details.Meshes.PizzaBoxWhole",
+        material="Prop_Details.Materials.Mati_PizzaBox",
+        package="SanctuaryAir_Dynamic"
+    )
+    sample_def = unrealsdk.find_object("UsableCustomizationItemDefinition", item_mesh_details.item_definition)
     def setup_item(item, purchasable_data):
         blg = get_globals()
         name = purchasable_data[0] if purchasable_data else "Blank"
-        mesh = unrealsdk.find_object("StaticMesh", purchasable_data[1] if purchasable_data else "Prop_Details.Meshes.PizzaBoxWhole")
-        mat = unrealsdk.find_object("MaterialInstanceConstant", purchasable_data[2] if purchasable_data else "Prop_Details.Materials.Mati_PizzaBox")
+        mesh = unrealsdk.find_object("StaticMesh", purchasable_data[1] if purchasable_data else item_mesh_details.mesh)
+        mat = unrealsdk.find_object("MaterialInstanceConstant", purchasable_data[2] if purchasable_data else item_mesh_details.material)
 
         item_def_name = f"archi_bm_def_{name.replace(' ', '_').replace(':', '')}"
         item_def = unrealsdk.construct_object("UsableCustomizationItemDefinition", blg.package, item_def_name, 0, sample_def)
@@ -1634,7 +1549,11 @@ def change_bm_inventory(bmvm):
 
     featured = bmvm.GetFeaturedItem(pc)
     if featured and featured.Item:
-        setup_item(featured.Item, ("Level My Gear", "Prop_Pickups.Meshes.EridiumContainer", "Prop_Pickups.Materials.Eridium_Pickups_Bar"))
+        if Game.get_current().name == "TPS":
+            setup_item(featured.Item, ("Level My Gear", "Prop_Details.Meshes.PizzaBoxWhole", "FX_CREA_PrimalBeast.Materials.Mati_Ice_Chunk"))
+        else:
+            setup_item(featured.Item, ("Level My Gear", "Prop_Pickups.Meshes.EridiumContainer", "Prop_Pickups.Materials.Eridium_Pickups_Bar"))
+        
 
 
 @hook("WillowGame.BlackMarketDefinition:CurrentLevelIsBelowMaxForPlayer")
@@ -1662,13 +1581,15 @@ def use_black_market(obj: unreal.UObject, args: unreal.WrappedStruct, ret, func:
 def black_market_buy_item(obj: unreal.UObject, args: unreal.WrappedStruct, ret, func: unreal.BoundFunction):
     pc = get_pc()
     blg = get_globals()
-    # take money, hook does not trigger if can't afford
-    pc.PlayerReplicationInfo.AddCurrencyOnHand(1, -bm_price)
 
     bought_item = args.Item
     name = bought_item.ItemName
     if not name.startswith("Black Market: "):
         return
+
+    # take money, hook does not trigger if can't afford
+    pc.PlayerReplicationInfo.AddCurrencyOnHand(1, -bm_price)
+
     name = name.split("Black Market: ")[-1]
 
 
@@ -1689,6 +1610,14 @@ def black_market_buy_item(obj: unreal.UObject, args: unreal.WrappedStruct, ret, 
         # pc.PlayerReplicationInfo.AddCurrencyOnHand(2, 80)
     elif name == "Gemstone Package":
         spawns = random.sample(["Gemstone Pistol", "Gemstone Shotgun", "Gemstone SMG", "Gemstone SniperRifle", "Gemstone AssaultRifle" ], 3)
+    elif name == "Glitch Package":
+        spawns = random.sample(["Glitch Pistol", "Glitch Laser", "Glitch Shotgun", "Glitch SMG", "Glitch SniperRifle", "Glitch AssaultRifle", "Glitch RocketLauncher"], 3)
+    elif name == "RocketLauncher Package":
+        spawns = ["Legendary RocketLauncher", "Rare RocketLauncher", "VeryRare RocketLauncher"]
+    elif name == "Laser Package":
+        spawns = ["Legendary Laser", "Rare Laser", "VeryRare Laser"]
+    elif name == "Oz Kit Package":
+        spawns = ["Legendary Oz Kit", "Rare Oz Kit", "VeryRare Oz Kit"]
     elif name == "Level My Gear":
         level_my_gear()
     else:
@@ -1697,8 +1626,10 @@ def black_market_buy_item(obj: unreal.UObject, args: unreal.WrappedStruct, ret, 
         print(f"unknown black market purchase: {name}")
 
     # pc.PlayerReplicationInfo.AddCurrencyOnHand(4, 33) # torgue tokens
-
-    spawn_loc = {"X": obj.Location.X, "Y": obj.Location.Y - 1000, "Z": obj.Location.Z + 500}
+    if Game.get_current().name == "TPS":
+        spawn_loc = {"X": obj.Location.X-600, "Y": obj.Location.Y - 600, "Z": obj.Location.Z + 500}
+    else:
+        spawn_loc = {"X": obj.Location.X, "Y": obj.Location.Y - 1000, "Z": obj.Location.Z + 500}
     for s in spawns:
         spawn_loc["X"] += 20
         spawn_gear(s, override_loc=spawn_loc)
@@ -1708,7 +1639,12 @@ def black_market_buy_item(obj: unreal.UObject, args: unreal.WrappedStruct, ret, 
     my_stats = next((x for x in player_stats_list if x.Owner == pc), player_stats_list[-1])
     my_stats.IncrementIntStat("STAT_PLAYER_NUM_BLACK_MARKET_ITEMS_PURCHASED", 1)
     my_stats.IncrementIntStat("STAT_PLAYER_INVENTORY_PURCHASED_WITH_ERIDIUM", 1)
-    get_pc().WorldInfo.GRI.MissionTracker.UpdateObjective(unrealsdk.find_object("MissionObjectiveDefinition", "GD_Episode04.M_Ep4_WelcomeToSanctuary:BuyFuelCell"))
+    if Game.get_current().name == "TPS":
+        get_pc().WorldInfo.GRI.MissionTracker.UpdateObjective(unrealsdk.find_object("MissionObjectiveDefinition", "GD_Co_Chapter03.M_Co_Ch03_Concordia:16_BuyUpgrade"))
+    else:
+        get_pc().WorldInfo.GRI.MissionTracker.UpdateObjective(unrealsdk.find_object("MissionObjectiveDefinition", "GD_Episode04.M_Ep4_WelcomeToSanctuary:BuyFuelCell"))
+
+    return Block
 
 def log_to_file(line):
     print(line)
@@ -1780,7 +1716,7 @@ def add_chat_message(obj: unreal.UObject, args: unreal.WrappedStruct, ret, func:
     msg = args.msg[0:2].lower() + args.msg[2:]
     if msg.startswith("/travel") or msg.startswith("travel"):
         travel_arg = msg.replace(":", "").split("travel ")[-1].strip()
-        map_name = region_translation_dict.get(''.join(filter(str.isalnum, travel_arg)).lower())
+        map_name = get_translated_map_name(travel_arg)
 
         if not map_name:
             show_chat_message(f"unrecognized location: {travel_arg}")
@@ -1821,7 +1757,8 @@ def show_mission_obj_message(obj: unreal.UObject, args: unreal.WrappedStruct, re
     # print("UpdateObjective")
     # print(args.MissionObjective)
     # print(args.MissionObjective.Name)
-    if str(args.MissionObjective) == "MissionObjectiveDefinition'GD_Episode08.M_Ep8_SanctuaryTakesOff:LeaveSanctuary'":
+    pn = args.MissionObjective.PathName(args.MissionObjective)
+    if pn == "GD_Episode08.M_Ep8_SanctuaryTakesOff:LeaveSanctuary":
         show_chat_message("To reach any remaining checks in Sanctuary, use the chat command \"travel Sanctuary\"")
 
 
@@ -1892,12 +1829,8 @@ mod_instance = build_mod(
         show_mission_obj_message,
         show_travel_message,
         set_always_on_level,
+        update_objective,
     ]
 )
-
-def passed_loc_conditions(loc_name, locations_checked):
-    if loc_name == "Enemy: That Asshole" and loc_name_to_id["Enemy: Flame Knuckle"] not in locations_checked:
-        return False
-    return True
 
 # (> pyexec \path\to\BouncyLootGod\__init__.py
